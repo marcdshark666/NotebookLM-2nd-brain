@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NotebookLM 2nd Brain</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+  </head>
+  <body>
+    <div class="backdrop" aria-hidden="true"></div>
+
+    <header class="masthead">
+      <div class="brand-block">
+        <p class="eyebrow">GitHub Pages Edition</p>
+        <h1>NotebookLM 2nd Brain</h1>
+        <p class="lead">
+          En statisk mellanhand som fungerar direkt pa GitHub Pages. Du kopplar in ditt Google-konto via popup-auth,
+          appen soker over dina Drive-kallor, och du far ett samlat svar i stallet for en notebook i taget.
+        </p>
+      </div>
+
+      <div class="status-block">
+        <div class="status-label">Status</div>
+        <div id="auth-pill" class="status-pill">Inte ansluten</div>
+        <p id="auth-copy" class="status-copy">
+          Ingen e-post eller inget losenord sparas i den har sidan. Den anvander Googles popup-baserade OAuth-tokenflode.
+        </p>
+
+        <div class="setup-panel">
+          <label class="field-label" for="client-id-input">Google Web Client ID</label>
+          <input id="client-id-input" type="text" placeholder="Klistra in ditt Google OAuth Client ID har" />
+          <p class="setup-note">
+            Authorized JavaScript origin att lagga in i Google Cloud:
+            <code id="origin-output"></code>
+          </p>
+          <p class="setup-note">
+            GitHub Pages-adress:
+            <code id="pages-output"></code>
+          </p>
+        </div>
+
+        <div class="action-row">
+          <button id="connect-button" class="primary-action" type="button">Connect Google</button>
+          <button id="logout-button" class="secondary-action" type="button">Disconnect</button>
+          <button id="clear-client-id-button" class="ghost-action" type="button">Glom Client ID</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="question-zone">
+        <div class="section-head">
+          <p class="eyebrow">Ask Everything</p>
+          <h2>Stall en fraga over flera kallor</h2>
+        </div>
+
+        <form id="ask-form" class="question-form">
+          <label for="question-input" class="sr-only">Din fraga</label>
+          <textarea
+            id="question-input"
+            name="question"
+            rows="5"
+            placeholder="Exempel: Vad sager mina senaste dokument om planen for april och vilka filer stoder svaret?"
+          ></textarea>
+          <div class="question-foot">
+            <p class="quiet-note">
+              Den har Pages-versionen laser just nu framst Docs, Slides, Sheets och textfiler. PDF, bilder och media ar nasta steg.
+            </p>
+            <button id="ask-button" class="primary-action" type="submit">Fraga alla kallor</button>
+          </div>
+        </form>
+
+        <section class="answer-zone">
+          <div class="section-head compact">
+            <p class="eyebrow">Response</p>
+            <h2>Samlat svar</h2>
+          </div>
+
+          <div id="answer-shell" class="answer-shell empty">
+            <p id="answer-text">
+              Nar du har lagt in ett Google Client ID och anslutit kontot kan sidan soka och sammanfatta flera kallor direkt i webblasaren.
+            </p>
+          </div>
+
+          <div class="meta-grid">
+            <section class="meta-panel">
+              <h3>Kallor som anvandes</h3>
+              <ol id="citation-list" class="citation-list"></ol>
+            </section>
+
+            <section class="meta-panel">
+              <h3>Matchade filer</h3>
+              <ul id="matched-list" class="plain-list"></ul>
+            </section>
+
+            <section class="meta-panel">
+              <h3>Hoppades over</h3>
+              <ul id="skipped-list" class="plain-list"></ul>
+            </section>
+          </div>
+        </section>
+      </section>
+
+      <aside class="source-rail">
+        <div class="section-head compact">
+          <p class="eyebrow">Source Scan</p>
+          <h2>Filer som hittas</h2>
+        </div>
+
+        <form id="source-form" class="source-form">
+          <input id="source-query" type="search" placeholder="Filnamn, amne eller nyckelord" />
+          <button class="secondary-action" type="submit">Sok</button>
+          <button id="refresh-button" class="ghost-action" type="button">Uppdatera</button>
+        </form>
+
+        <div id="source-summary" class="rail-note">
+          Laggt in ditt Google Client ID och anslut kontot for att lasa in kallor.
+        </div>
+
+        <div id="source-list" class="source-list" aria-live="polite"></div>
+      </aside>
+    </main>
+
+    <footer class="footer-note">
+      <p>
+        Enligt Googles hjalpsidor arbetar NotebookLM per notebook. Den har sidan bygger darfor en egen lasande mellanvag via
+        Google Drive i stallet for en intern NotebookLM-API.
+      </p>
+    </footer>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

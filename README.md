@@ -1,93 +1,82 @@
-# NotebookBridge
+# NotebookLM 2nd Brain
 
-NotebookBridge is a small web app that sits between your Google account and an answer engine. You sign in with Google OAuth, the app searches across your Drive-accessible sources, pulls text from supported file types, and returns one combined answer with citations.
+This repository now includes a GitHub Pages-compatible version of the project in the repo root. It runs entirely in the browser, uses Google's popup-based token flow, and searches across your Google Drive-readable sources without asking for your Google password inside the site.
 
-This is the practical workaround for a current NotebookLM limitation: Google's official NotebookLM help says each notebook is independent and cannot access information across multiple notebooks at the same time. As of April 2, 2026, I also could not find an official public NotebookLM API in Google's developer documentation, so this prototype uses Google OAuth plus the Drive API instead of trying to automate NotebookLM itself.
+This is the practical workaround for a current NotebookLM limitation: Google's official help describes notebooks as separate workspaces, and I could not find an official public NotebookLM API in Google's developer docs as of April 2, 2026. Because GitHub Pages cannot safely host a server-side client secret, the live site uses Google Identity Services in the browser instead of the earlier server prototype.
 
-## What the prototype does
+## Live site
 
-- Authenticates with Google using OAuth 2.0, so you never type your Google password into this app.
-- Optionally keeps refresh tokens in an encrypted local token store so you do not need to authenticate every time.
-- Searches across Drive files using Google Drive full-text and metadata search.
-- Extracts text from supported source types:
+```text
+https://marcdshark666.github.io/NotebookLM-2nd-brain/
+```
+
+## What the GitHub Pages version does
+
+- Uses Google OAuth in the browser through the Google Identity Services token model
+- Requires only a Google Web Client ID, not a client secret
+- Searches across Drive files using Drive metadata and full-text search
+- Extracts text from:
   - Google Docs
   - Google Slides
   - Google Sheets as CSV
-  - plain text, Markdown, CSV, JSON, HTML, XML, and similar text-based files
-- Returns one answer plus citations and the matched files it used.
-- Uses a simple extractive answerer by default and can optionally call an external LLM if you configure one.
+  - plain text, Markdown, CSV, JSON, HTML, XML, and similar text files
+- Returns one combined answer plus source citations
 
 ## What it does not do yet
 
-- It does not call a real NotebookLM API, because no official one was found.
-- It does not read NotebookLM notebook lists, private notebook chats, or notebook-only metadata directly.
-- It does not yet extract text from PDFs, images, audio, or video inside this prototype.
-- It does not yet index every file into a local vector database. It currently does live retrieval per question.
+- It does not call a real NotebookLM API
+- It does not read private NotebookLM notebook internals directly
+- It does not yet extract PDFs, images, audio, or video
+- It does not keep long-lived background auth on GitHub Pages
 
-## Setup
+## Setup for the live GitHub Pages site
 
-### 1. Create a Google Cloud project
+### 1. Create a Google Cloud OAuth client
 
-1. Open the Google Cloud console.
-2. Enable the Google Drive API for the project.
+1. Open Google Cloud Console.
+2. Enable the Google Drive API.
 3. Create OAuth credentials of type **Web application**.
-4. Add this redirect URI:
+4. Add this authorized JavaScript origin:
 
 ```text
-http://localhost:3180/auth/google/callback
+https://marcdshark666.github.io
 ```
 
-If you change `APP_BASE_URL` or `PORT`, update the redirect URI to match exactly.
+If your OAuth consent screen is in testing mode, add the Google account you plan to use as a test user.
 
-### 2. Configure the app
+### 2. Open the Pages site
 
-Copy `.env.example` to `.env` and fill in:
-
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `COOKIE_SIGNING_SECRET`
-- `TOKEN_STORE_SECRET`
-
-Optional:
-
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL`
-- `OPENAI_BASE_URL`
-
-If you leave the optional LLM settings blank, the app still works, but the answerer stays extractive instead of generative.
-
-### 3. Start the app
-
-```bash
-npm start
-```
-
-Then open:
+Go to:
 
 ```text
-http://localhost:3180
+https://marcdshark666.github.io/NotebookLM-2nd-brain/
 ```
 
-## How authentication works
+### 3. Paste the Google Web Client ID into the page
 
-- You click **Connect Google**.
-- Google shows the consent screen.
-- Google redirects back to this app with an authorization code.
-- The server exchanges that code for tokens.
-- The refresh token can be stored locally in an encrypted file if `TOKEN_STORE_SECRET` is configured.
-- The browser only keeps a signed identity cookie and a session cookie, not your password.
+The site stores only the client ID locally in the browser. When you click **Connect Google**, Google opens its own popup and returns a short-lived access token to the page.
 
-## Notes on source coverage
+## How auth works on GitHub Pages
 
-NotebookLM supports PDFs, websites, Google Docs, Slides, Sheets, text, Markdown, images, YouTube URLs, and more. This app currently focuses on the subset we can pull clean text from through Google Drive export or direct download.
+- The site never asks for your Google password directly
+- The access token stays in browser storage for the current session
+- If the token expires, you reconnect with one button click
+- Because this is a static site, there is no server-side refresh token store
 
-If you want this to become a stronger "ask everything" system, the next steps are:
+## Repository layout
 
-1. add PDF extraction
-2. add website and YouTube ingestion
-3. add a local chunk index for faster repeated questions
-4. add file or folder allowlists so only selected source groups are searched
-5. add public NotebookLM link ingestion for notebooks you explicitly choose to share
+- `index.html`, `styles.css`, `app.js`, `.nojekyll`
+  - The live GitHub Pages app
+- `server.js`, `package.json`, `public/`
+  - The earlier local server prototype, kept for reference
+
+## Next useful upgrades
+
+1. Add PDF extraction in the browser or via a small backend service
+2. Add allowlists so you can choose folders or file groups per question
+3. Add website and YouTube ingestion
+4. Add a local chunk index for faster repeated questions
+5. Add shared NotebookLM link ingestion for notebooks you explicitly expose
 
 ## Official references used for the design
 
@@ -95,8 +84,8 @@ If you want this to become a stronger "ask everything" system, the next steps ar
   - https://support.google.com/notebooklm/answer/16213268
 - NotebookLM source types:
   - https://support.google.com/notebooklm/answer/16215270
-- Google OAuth 2.0 for web server applications:
-  - https://developers.google.com/identity/protocols/oauth2/web-server
+- Google Identity Services token model:
+  - https://developers.google.com/identity/oauth2/web/guides/use-token-model
 - Google Drive file search:
   - https://developers.google.com/drive/api/guides/search-files
 - Google Drive export formats:
