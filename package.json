@@ -1,0 +1,12 @@
+{
+  "name": "notebook-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Google OAuth bridge for asking one question across many Drive-backed sources.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

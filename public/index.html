@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NotebookBridge</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="backdrop" aria-hidden="true"></div>
+    <header class="masthead">
+      <div class="brand-block">
+        <p class="eyebrow">Cross-Notebook Operator</p>
+        <h1>NotebookBridge</h1>
+        <p class="lead">
+          En mellanhand mellan din Google-källa och ett samlat svar. Logga in med Google OAuth, fråga en gång,
+          och låt appen leta över stödda källor i stället för en notebook i taget.
+        </p>
+      </div>
+
+      <div class="status-block">
+        <div class="status-label">Session</div>
+        <div id="auth-pill" class="status-pill">Kontrollerar anslutning…</div>
+        <p id="auth-copy" class="status-copy">
+          Om du vill slippa lämna lösenord direkt använder den här appen Google OAuth.
+        </p>
+        <div class="action-row">
+          <a id="connect-link" class="primary-action" href="/auth/google/start">Connect Google</a>
+          <button id="logout-button" class="secondary-action" type="button">Logga ut</button>
+          <button id="disconnect-button" class="ghost-action" type="button">Glöm sparad auth</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="question-zone">
+        <div class="section-head">
+          <p class="eyebrow">Ask Everything</p>
+          <h2>Ställ en fråga över många källor</h2>
+        </div>
+
+        <form id="ask-form" class="question-form">
+          <label for="question-input" class="sr-only">Din fråga</label>
+          <textarea
+            id="question-input"
+            name="question"
+            rows="5"
+            placeholder="Exempel: Vad säger mina senaste dokument om projektplanen för april och vilka filer stöder svaret?"
+          ></textarea>
+          <div class="question-foot">
+            <p class="quiet-note">
+              Första versionen läser just nu främst Docs, Slides, Sheets och textfiler. PDF och media kräver nästa steg.
+            </p>
+            <button id="ask-button" class="primary-action" type="submit">Fråga alla källor</button>
+          </div>
+        </form>
+
+        <section class="answer-zone">
+          <div class="section-head compact">
+            <p class="eyebrow">Response</p>
+            <h2>Samlat svar</h2>
+          </div>
+
+          <div id="answer-shell" class="answer-shell empty">
+            <p id="answer-text">
+              Här kommer ett samlat svar tillbaka efter att appen har sökt efter relevanta filer och försökt läsa ut stödd text.
+            </p>
+          </div>
+
+          <div class="meta-grid">
+            <section class="meta-panel">
+              <h3>Källor som användes</h3>
+              <ol id="citation-list" class="citation-list"></ol>
+            </section>
+
+            <section class="meta-panel">
+              <h3>Matchade filer</h3>
+              <ul id="matched-list" class="plain-list"></ul>
+            </section>
+
+            <section class="meta-panel">
+              <h3>Hoppades över</h3>
+              <ul id="skipped-list" class="plain-list"></ul>
+            </section>
+          </div>
+        </section>
+      </section>
+
+      <aside class="source-rail">
+        <div class="section-head compact">
+          <p class="eyebrow">Source Scan</p>
+          <h2>Filer som hittas</h2>
+        </div>
+
+        <form id="source-form" class="source-form">
+          <input id="source-query" type="search" placeholder="Filnamn, ämne eller nyckelord" />
+          <button class="secondary-action" type="submit">Sök</button>
+          <button id="refresh-button" class="ghost-action" type="button">Uppdatera</button>
+        </form>
+
+        <div id="source-summary" class="rail-note">
+          Anslut Google för att se källor som den här prototypen kan söka i.
+        </div>
+
+        <div id="source-list" class="source-list" aria-live="polite"></div>
+      </aside>
+    </main>
+
+    <footer class="footer-note">
+      <p>
+        NotebookLM låter enligt Googles hjälp inte en notebook läsa över flera notebooks samtidigt. Den här appen bygger därför
+        en egen mellanväg via Google OAuth och Drive-sökning.
+      </p>
+    </footer>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
