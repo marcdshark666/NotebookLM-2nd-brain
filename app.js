@@ -66,6 +66,16 @@ const elements = {
   connectButton: document.querySelector("#connect-button"),
   logoutButton: document.querySelector("#logout-button"),
   clearClientIdButton: document.querySelector("#clear-client-id-button"),
+  agentOrbButton: document.querySelector("#agent-orb-button"),
+  agentOrbCanvas: document.querySelector("#agent-orb-canvas"),
+  orbTitle: document.querySelector("#orb-title"),
+  orbCopy: document.querySelector("#orb-copy"),
+  orbChipAuth: document.querySelector("#orb-chip-auth"),
+  orbChipScan: document.querySelector("#orb-chip-scan"),
+  orbChipAnswer: document.querySelector("#orb-chip-answer"),
+  sessionIndicator: document.querySelector("#session-indicator"),
+  sourceIndicator: document.querySelector("#source-indicator"),
+  modeIndicator: document.querySelector("#mode-indicator"),
   askForm: document.querySelector("#ask-form"),
   askButton: document.querySelector("#ask-button"),
   questionInput: document.querySelector("#question-input"),
@@ -87,6 +97,11 @@ const state = {
   expiresAt: 0,
   profile: null,
   lastSources: [],
+  isAsking: false,
+  isLoadingSources: false,
+  orbAnimationFrame: 0,
+  orbCanvasSize: 0,
+  orbDevicePixelRatio: 1,
 };
 
 boot();
@@ -96,7 +111,9 @@ async function boot() {
   restoreClientId();
   restoreSession();
   wireEvents();
+  initAgentOrb();
   renderAuth();
+  renderAgentSurface();
 
   if (hasActiveSession()) {
     try {
@@ -116,9 +133,232 @@ function wireEvents() {
   elements.connectButton.addEventListener("click", handleConnect);
   elements.logoutButton.addEventListener("click", handleDisconnect);
   elements.clearClientIdButton.addEventListener("click", handleClearClientId);
+  elements.agentOrbButton.addEventListener("click", handleAgentOrbClick);
   elements.askForm.addEventListener("submit", handleAsk);
   elements.sourceForm.addEventListener("submit", handleSourceSearch);
   elements.refreshButton.addEventListener("click", () => loadSources(elements.sourceQuery.value.trim()));
+}
+
+function initAgentOrb() {
+  resizeAgentOrbCanvas();
+  window.addEventListener("resize", resizeAgentOrbCanvas, { passive: true });
+
+  const animate = (time) => {
+    drawAgentOrb(time);
+    state.orbAnimationFrame = window.requestAnimationFrame(animate);
+  };
+
+  state.orbAnimationFrame = window.requestAnimationFrame(animate);
+}
+
+function resizeAgentOrbCanvas() {
+  const canvas = elements.agentOrbCanvas;
+  const rect = canvas.getBoundingClientRect();
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  state.orbCanvasSize = Math.max(1, rect.width);
+  state.orbDevicePixelRatio = ratio;
+  canvas.width = Math.round(rect.width * ratio);
+  canvas.height = Math.round(rect.height * ratio);
+}
+
+function drawAgentOrb(time) {
+  const canvas = elements.agentOrbCanvas;
+  const context = canvas.getContext("2d");
+  const size = state.orbCanvasSize;
+  const ratio = state.orbDevicePixelRatio;
+
+  if (!context || !size) return;
+
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.clearRect(0, 0, size, size);
+  context.translate(size / 2, size / 2);
+
+  const profile = getOrbProfile();
+  const radius = size * 0.34;
+  const timeScale = time * 0.001;
+
+  const glow = context.createRadialGradient(0, 0, radius * 0.18, 0, 0, radius * 1.22);
+  glow.addColorStop(0, `rgba(${profile.core}, 0.34)`);
+  glow.addColorStop(0.48, `rgba(${profile.rim}, 0.16)`);
+  glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+  context.fillStyle = glow;
+  context.beginPath();
+  context.arc(0, 0, radius * 1.28, 0, Math.PI * 2);
+  context.fill();
+
+  drawOrbWave(context, radius * 1.04, timeScale, profile, 1.1, 0.12, 0);
+  drawOrbWave(context, radius * 0.9, timeScale, profile, 1.45, 0.08, 1.6);
+  drawOrbWave(context, radius * 0.77, timeScale, profile, 1.8, 0.06, 3.1);
+
+  context.save();
+  context.rotate(timeScale * (0.1 + profile.energy * 0.14));
+  context.strokeStyle = `rgba(${profile.rim}, 0.22)`;
+  context.lineWidth = 1.2;
+  context.setLineDash([8, 12]);
+  context.beginPath();
+  context.arc(0, 0, radius * 1.15, 0, Math.PI * 2);
+  context.stroke();
+  context.restore();
+
+  for (let index = 0; index < 3; index += 1) {
+    const angle = timeScale * (0.36 + index * 0.12) + index * 2.094;
+    const nodeRadius = radius * (0.74 + index * 0.09);
+    const x = Math.cos(angle) * nodeRadius;
+    const y = Math.sin(angle) * nodeRadius;
+    const nodeGlow = context.createRadialGradient(x, y, 0, x, y, 14 + profile.energy * 10);
+    nodeGlow.addColorStop(0, `rgba(${profile.highlight}, 0.9)`);
+    nodeGlow.addColorStop(1, "rgba(0, 0, 0, 0)");
+    context.fillStyle = nodeGlow;
+    context.beginPath();
+    context.arc(x, y, 12 + profile.energy * 6, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  const core = context.createRadialGradient(0, 0, radius * 0.08, 0, 0, radius * 0.62);
+  core.addColorStop(0, `rgba(${profile.highlight}, 0.88)`);
+  core.addColorStop(0.4, `rgba(${profile.core}, 0.42)`);
+  core.addColorStop(1, "rgba(3, 6, 10, 0.03)");
+  context.fillStyle = core;
+  context.beginPath();
+  context.arc(0, 0, radius * 0.64, 0, Math.PI * 2);
+  context.fill();
+
+  context.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+function drawOrbWave(context, baseRadius, timeScale, profile, speed, variance, phaseOffset) {
+  context.beginPath();
+
+  for (let step = 0; step <= 180; step += 1) {
+    const angle = (step / 180) * Math.PI * 2;
+    const wobble =
+      1 +
+      variance * Math.sin(angle * 3 + timeScale * speed + phaseOffset) +
+      variance * 0.6 * Math.cos(angle * 6 - timeScale * speed * 1.4 + phaseOffset);
+    const pulse = 1 + profile.energy * 0.1 * Math.sin(angle * 2 - timeScale * (speed + 0.5));
+    const radius = baseRadius * wobble * pulse;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+
+    if (step === 0) {
+      context.moveTo(x, y);
+    } else {
+      context.lineTo(x, y);
+    }
+  }
+
+  context.closePath();
+  context.strokeStyle = `rgba(${profile.rim}, ${0.16 + profile.energy * 0.18})`;
+  context.lineWidth = 1.3 + profile.energy * 1.1;
+  context.stroke();
+}
+
+function getOrbProfile() {
+  if (state.isAsking) {
+    return {
+      energy: 1,
+      core: "84, 194, 255",
+      rim: "132, 226, 255",
+      highlight: "241, 193, 125",
+    };
+  }
+
+  if (state.isLoadingSources) {
+    return {
+      energy: 0.74,
+      core: "97, 164, 255",
+      rim: "151, 210, 255",
+      highlight: "127, 213, 255",
+    };
+  }
+
+  if (hasActiveSession()) {
+    return {
+      energy: 0.54,
+      core: "92, 224, 193",
+      rim: "182, 244, 222",
+      highlight: "127, 213, 255",
+    };
+  }
+
+  if (state.clientId) {
+    return {
+      energy: 0.34,
+      core: "241, 193, 125",
+      rim: "255, 224, 182",
+      highlight: "127, 213, 255",
+    };
+  }
+
+  return {
+    energy: 0.2,
+    core: "74, 97, 126",
+    rim: "132, 156, 186",
+    highlight: "127, 213, 255",
+  };
+}
+
+async function handleAgentOrbClick() {
+  if (!state.clientId) {
+    elements.clientIdInput.focus();
+    setAnswerText("Klistra in ditt Google Web Client ID for att aktivera karnan.");
+    return;
+  }
+
+  if (!hasActiveSession()) {
+    await handleConnect();
+    return;
+  }
+
+  elements.questionInput.focus();
+}
+
+function renderAgentSurface() {
+  const connected = hasActiveSession();
+  const sourceCount = state.lastSources.length;
+  let title = "Waiting for signal";
+  let copy = "Paste a Google Client ID to wake the core.";
+  let mode = "Idle";
+  let session = "Offline";
+
+  if (!state.clientId) {
+    title = "Awaiting client";
+    copy = "Paste a Google Web Client ID to wake the core.";
+    mode = "Setup";
+  } else if (!connected) {
+    title = "Ready to link";
+    copy = "Click the core or use Connect Google to bring your sources online.";
+    mode = "Authenticate";
+  } else if (state.isAsking) {
+    title = "Synthesizing";
+    copy = "Scanning extracts and shaping a combined answer.";
+    mode = "Answer";
+    session = state.profile?.name || state.profile?.email || "Connected";
+  } else if (state.isLoadingSources) {
+    title = "Scanning field";
+    copy = "Refreshing the source layer around your agent.";
+    mode = "Scan";
+    session = state.profile?.name || state.profile?.email || "Connected";
+  } else {
+    title = "Ready for prompt";
+    copy = "One question in. Multiple sources scanned back.";
+    mode = "Linked";
+    session = state.profile?.name || state.profile?.email || "Connected";
+  }
+
+  elements.orbTitle.textContent = title;
+  elements.orbCopy.textContent = copy;
+  elements.sessionIndicator.textContent = session;
+  elements.sourceIndicator.textContent = `${sourceCount} loaded`;
+  elements.modeIndicator.textContent = mode;
+
+  setChipState(elements.orbChipAuth, !state.clientId || !connected);
+  setChipState(elements.orbChipScan, connected && state.isLoadingSources);
+  setChipState(elements.orbChipAnswer, connected && state.isAsking);
+}
+
+function setChipState(element, active) {
+  element.classList.toggle("active", Boolean(active));
 }
 
 function renderLocationInfo() {
@@ -177,13 +417,18 @@ function clearSession(render = true) {
   state.accessToken = "";
   state.expiresAt = 0;
   state.profile = null;
+  state.lastSources = [];
+  state.isAsking = false;
+  state.isLoadingSources = false;
   sessionStorage.removeItem(STORAGE_KEYS.session);
   sessionStorage.removeItem(STORAGE_KEYS.profile);
   localStorage.removeItem(STORAGE_KEYS.profile);
 
   if (render) {
     renderAuth();
-    renderSources([]);
+    elements.sourceSummary.textContent = "Laggt in ditt Google Client ID och anslut kontot for att lasa in kallor.";
+    elements.sourceList.innerHTML = "";
+    renderAgentSurface();
   }
 }
 
@@ -195,6 +440,7 @@ function handleClientIdInput(event) {
   state.clientId = String(event.target.value || "").trim();
   localStorage.setItem(STORAGE_KEYS.clientId, state.clientId);
   renderAuth();
+  renderAgentSurface();
 }
 
 async function handleConnect() {
@@ -211,6 +457,7 @@ async function handleConnect() {
     await hydrateProfile();
     persistSession();
     renderAuth();
+    renderAgentSurface();
     setAnswerText("Google-kontot ar anslutet. Nu kan sidan lasa kallor direkt i webblasaren.");
     await loadSources("");
   } catch (error) {
@@ -232,6 +479,7 @@ async function handleDisconnect() {
 
   clearSession();
   setAnswerText("Anslutningen rensades. Klicka pa Connect Google om du vill ge atkomst igen.");
+  renderAgentSurface();
 }
 
 function handleClearClientId() {
@@ -240,6 +488,7 @@ function handleClearClientId() {
   elements.clientIdInput.value = "";
   clearSession();
   setAnswerText("Client ID togs bort fran webblasaren.");
+  renderAgentSurface();
 }
 
 async function requestGoogleToken(promptValue) {
@@ -306,18 +555,21 @@ function renderAuth() {
   if (!state.clientId) {
     elements.authCopy.textContent =
       "Borja med att skapa ett Google Web Client ID, lagg in origin ovan i Google Cloud och klistra sedan in Client ID har.";
+    renderAgentSurface();
     return;
   }
 
   if (!connected) {
     elements.authCopy.textContent =
       "Client ID ar sparat lokalt i webblasaren. Klicka pa Connect Google for att ge tillfallig access token till dina Drive-kallor.";
+    renderAgentSurface();
     return;
   }
 
   const minutesLeft = Math.max(1, Math.round((state.expiresAt - Date.now()) / 60_000));
   const profileText = state.profile?.name || state.profile?.email || "Ditt Google-konto";
-  elements.authCopy.textContent = `${profileText} ar anslutet. Access-token ar aktiv i ungefär ${minutesLeft} minuter eller tills du disconnectar.`;
+  elements.authCopy.textContent = `${profileText} ar anslutet. Access-token ar aktiv i ungefar ${minutesLeft} minuter eller tills du disconnectar.`;
+  renderAgentSurface();
 }
 
 function setConnectBusy(active) {
@@ -358,9 +610,13 @@ async function loadSources(query) {
   if (!hasActiveSession()) {
     elements.sourceSummary.textContent = "Anslut Google forst for att lasa in kallor.";
     elements.sourceList.innerHTML = "";
+    state.lastSources = [];
+    renderAgentSurface();
     return;
   }
 
+  state.isLoadingSources = true;
+  renderAgentSurface();
   elements.sourceSummary.textContent = "Laser in kallor...";
   elements.sourceList.innerHTML = "";
 
@@ -370,6 +626,9 @@ async function loadSources(query) {
     renderSources(files, query);
   } catch (error) {
     elements.sourceSummary.textContent = error.message || "Det gick inte att lasa kallor.";
+  } finally {
+    state.isLoadingSources = false;
+    renderAgentSurface();
   }
 }
 
@@ -590,6 +849,7 @@ function renderSources(files, query = "") {
       ? `Inga filer hittades for "${query}".`
       : "Inga filer hittades i den har hamtningen.";
     elements.sourceList.innerHTML = "";
+    renderAgentSurface();
     return;
   }
 
@@ -621,11 +881,14 @@ function renderSources(files, query = "") {
       `;
     })
     .join("");
+  renderAgentSurface();
 }
 
 function setAskBusy(active) {
+  state.isAsking = active;
   elements.askButton.disabled = active || !hasActiveSession();
   elements.askButton.textContent = active ? "Arbetar..." : "Fraga alla kallor";
+  renderAgentSurface();
 }
 
 function clearLists() {

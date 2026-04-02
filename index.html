@@ -10,68 +10,138 @@
   <body>
     <div class="backdrop" aria-hidden="true"></div>
 
-    <header class="masthead">
-      <div class="brand-block">
-        <p class="eyebrow">GitHub Pages Edition</p>
-        <h1>NotebookLM 2nd Brain</h1>
-        <p class="lead">
-          En statisk mellanhand som fungerar direkt pa GitHub Pages. Du kopplar in ditt Google-konto via popup-auth,
-          appen soker over dina Drive-kallor, och du far ett samlat svar i stallet for en notebook i taget.
-        </p>
-      </div>
+    <div class="site-shell">
+      <header class="hero-bar">
+        <div class="hero-copy">
+          <p class="eyebrow">Agent Interface</p>
+          <h1>NotebookLM 2nd Brain</h1>
+          <p class="lead">
+            Samma tysta, runda sci-fi-kansla som shader-sidan du visade, men nu som front for din AI-agent i stallet for
+            en reminder-app.
+          </p>
+        </div>
 
-      <div class="status-block">
-        <div class="status-label">Status</div>
-        <div id="auth-pill" class="status-pill">Inte ansluten</div>
-        <p id="auth-copy" class="status-copy">
-          Ingen e-post eller inget losenord sparas i den har sidan. Den anvander Googles popup-baserade OAuth-tokenflode.
-        </p>
-
-        <div class="setup-panel">
-          <label class="field-label" for="client-id-input">Google Web Client ID</label>
-          <input id="client-id-input" type="text" placeholder="Klistra in ditt Google OAuth Client ID har" />
-          <p class="setup-note">
-            Authorized JavaScript origin att lagga in i Google Cloud:
+        <div class="hero-meta panel">
+          <div class="meta-item">
+            <span class="field-label">GitHub Pages Origin</span>
             <code id="origin-output"></code>
-          </p>
-          <p class="setup-note">
-            GitHub Pages-adress:
-            <code id="pages-output"></code>
-          </p>
-        </div>
-
-        <div class="action-row">
-          <button id="connect-button" class="primary-action" type="button">Connect Google</button>
-          <button id="logout-button" class="secondary-action" type="button">Disconnect</button>
-          <button id="clear-client-id-button" class="ghost-action" type="button">Glom Client ID</button>
-        </div>
-      </div>
-    </header>
-
-    <main class="workspace">
-      <section class="question-zone">
-        <div class="section-head">
-          <p class="eyebrow">Ask Everything</p>
-          <h2>Stall en fraga over flera kallor</h2>
-        </div>
-
-        <form id="ask-form" class="question-form">
-          <label for="question-input" class="sr-only">Din fraga</label>
-          <textarea
-            id="question-input"
-            name="question"
-            rows="5"
-            placeholder="Exempel: Vad sager mina senaste dokument om planen for april och vilka filer stoder svaret?"
-          ></textarea>
-          <div class="question-foot">
-            <p class="quiet-note">
-              Den har Pages-versionen laser just nu framst Docs, Slides, Sheets och textfiler. PDF, bilder och media ar nasta steg.
-            </p>
-            <button id="ask-button" class="primary-action" type="submit">Fraga alla kallor</button>
           </div>
-        </form>
+          <div class="meta-item">
+            <span class="field-label">Current URL</span>
+            <code id="pages-output"></code>
+          </div>
+          <div class="hero-meta-copy">
+            Den runda karnan ar nu huvudgranssnittet. Klick pa den for att ansluta eller hoppa direkt till din fraga.
+          </div>
+        </div>
+      </header>
 
-        <section class="answer-zone">
+      <main class="interface-grid">
+        <section class="orb-stage">
+          <div class="mode-rail" aria-hidden="true">
+            <span id="orb-chip-auth" class="mode-chip">Authenticate</span>
+            <span id="orb-chip-scan" class="mode-chip">Scan</span>
+            <span id="orb-chip-answer" class="mode-chip">Answer</span>
+          </div>
+
+          <button id="agent-orb-button" class="agent-orb-button" type="button">
+            <span class="orb-halo orb-halo-1"></span>
+            <span class="orb-halo orb-halo-2"></span>
+            <span class="orb-halo orb-halo-3"></span>
+            <canvas id="agent-orb-canvas" class="agent-orb-canvas"></canvas>
+            <span class="orb-noise"></span>
+
+            <span class="orb-center">
+              <span class="orb-kicker">AI Agent Core</span>
+              <strong id="orb-title" class="orb-title">Waiting for signal</strong>
+              <span id="orb-copy" class="orb-copy">Paste a Google Client ID to wake the core.</span>
+            </span>
+          </button>
+
+          <div class="orb-foot">
+            <div class="orb-pill">
+              <span class="orb-pill-label">Session</span>
+              <strong id="session-indicator">Offline</strong>
+            </div>
+            <div class="orb-pill">
+              <span class="orb-pill-label">Sources</span>
+              <strong id="source-indicator">0 loaded</strong>
+            </div>
+            <div class="orb-pill">
+              <span class="orb-pill-label">Mode</span>
+              <strong id="mode-indicator">Idle</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="control-stack">
+          <section class="panel control-panel">
+            <div class="section-head compact">
+              <p class="eyebrow">Access</p>
+              <h2>Google Link</h2>
+            </div>
+
+            <div id="auth-pill" class="status-pill">Inte ansluten</div>
+            <p id="auth-copy" class="status-copy">
+              Ingen e-post eller inget losenord sparas i sidan. Allt sker via Googles popup-baserade tokenflode.
+            </p>
+
+            <label class="field-label" for="client-id-input">Google Web Client ID</label>
+            <input id="client-id-input" type="text" placeholder="Klistra in ditt Google OAuth Client ID har" />
+
+            <div class="action-row">
+              <button id="connect-button" class="primary-action" type="button">Connect Google</button>
+              <button id="logout-button" class="secondary-action" type="button">Disconnect</button>
+              <button id="clear-client-id-button" class="ghost-action" type="button">Glom Client ID</button>
+            </div>
+          </section>
+
+          <section class="panel control-panel">
+            <div class="section-head compact">
+              <p class="eyebrow">Prompt</p>
+              <h2>Ask The Agent</h2>
+            </div>
+
+            <form id="ask-form" class="question-form">
+              <label for="question-input" class="sr-only">Din fraga</label>
+              <textarea
+                id="question-input"
+                name="question"
+                rows="6"
+                placeholder="Exempel: Sammanfatta vad mina senaste dokument sager om aprilplanen och vilka filer som stoder svaret."
+              ></textarea>
+              <div class="question-foot">
+                <p class="quiet-note">
+                  Ingen reminder-logik finns kvar. Det har ar nu bara en ren agentyta med samma visuella energi.
+                </p>
+                <button id="ask-button" class="primary-action" type="submit">Fraga alla kallor</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel control-panel source-panel">
+            <div class="section-head compact">
+              <p class="eyebrow">Source Scan</p>
+              <h2>Loaded Field</h2>
+            </div>
+
+            <form id="source-form" class="source-form">
+              <input id="source-query" type="search" placeholder="Filnamn, amne eller nyckelord" />
+              <button class="secondary-action" type="submit">Sok</button>
+              <button id="refresh-button" class="ghost-action" type="button">Uppdatera</button>
+            </form>
+
+            <div id="source-summary" class="rail-note">
+              Laggt in ditt Google Client ID och anslut kontot for att lasa in kallor.
+            </div>
+
+            <div id="source-list" class="source-list" aria-live="polite"></div>
+          </section>
+        </section>
+      </main>
+
+      <section class="response-grid">
+        <section class="panel answer-panel">
           <div class="section-head compact">
             <p class="eyebrow">Response</p>
             <h2>Samlat svar</h2>
@@ -79,55 +149,27 @@
 
           <div id="answer-shell" class="answer-shell empty">
             <p id="answer-text">
-              Nar du har lagt in ett Google Client ID och anslutit kontot kan sidan soka och sammanfatta flera kallor direkt i webblasaren.
+              Nar du har kopplat Google kan agentkarnan lasa over flera kallor, plocka fram textutdrag och ge ett samlat svar.
             </p>
           </div>
+        </section>
 
-          <div class="meta-grid">
-            <section class="meta-panel">
-              <h3>Kallor som anvandes</h3>
-              <ol id="citation-list" class="citation-list"></ol>
-            </section>
+        <section class="panel meta-panel">
+          <h3>Kallor som anvandes</h3>
+          <ol id="citation-list" class="citation-list"></ol>
+        </section>
 
-            <section class="meta-panel">
-              <h3>Matchade filer</h3>
-              <ul id="matched-list" class="plain-list"></ul>
-            </section>
+        <section class="panel meta-panel">
+          <h3>Matchade filer</h3>
+          <ul id="matched-list" class="plain-list"></ul>
+        </section>
 
-            <section class="meta-panel">
-              <h3>Hoppades over</h3>
-              <ul id="skipped-list" class="plain-list"></ul>
-            </section>
-          </div>
+        <section class="panel meta-panel">
+          <h3>Hoppades over</h3>
+          <ul id="skipped-list" class="plain-list"></ul>
         </section>
       </section>
-
-      <aside class="source-rail">
-        <div class="section-head compact">
-          <p class="eyebrow">Source Scan</p>
-          <h2>Filer som hittas</h2>
-        </div>
-
-        <form id="source-form" class="source-form">
-          <input id="source-query" type="search" placeholder="Filnamn, amne eller nyckelord" />
-          <button class="secondary-action" type="submit">Sok</button>
-          <button id="refresh-button" class="ghost-action" type="button">Uppdatera</button>
-        </form>
-
-        <div id="source-summary" class="rail-note">
-          Laggt in ditt Google Client ID och anslut kontot for att lasa in kallor.
-        </div>
-
-        <div id="source-list" class="source-list" aria-live="polite"></div>
-      </aside>
-    </main>
-
-    <footer class="footer-note">
-      <p>
-        Enligt Googles hjalpsidor arbetar NotebookLM per notebook. Den har sidan bygger darfor en egen lasande mellanvag via
-        Google Drive i stallet for en intern NotebookLM-API.
-      </p>
-    </footer>
+    </div>
 
     <script src="./app.js" defer></script>
   </body>
