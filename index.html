@@ -10,166 +10,68 @@
   <body>
     <div class="backdrop" aria-hidden="true"></div>
 
-    <div class="site-shell">
-      <header class="hero-bar">
-        <div class="hero-copy">
-          <p class="eyebrow">Agent Interface</p>
-          <h1>NotebookLM 2nd Brain</h1>
-          <p class="lead">
-            Samma tysta, runda sci-fi-kansla som shader-sidan du visade, men nu som front for din AI-agent i stallet for
-            en reminder-app.
-          </p>
+    <main class="minimal-shell">
+      <button id="agent-orb-button" class="agent-orb-button" type="button">
+        <span class="orb-halo orb-halo-1"></span>
+        <span class="orb-halo orb-halo-2"></span>
+        <span class="orb-halo orb-halo-3"></span>
+        <canvas id="agent-orb-canvas" class="agent-orb-canvas"></canvas>
+        <span class="orb-noise"></span>
+
+        <span class="orb-center">
+          <span class="orb-kicker">AI Agent</span>
+          <strong id="orb-title" class="orb-title">Waiting</strong>
+          <span id="orb-copy" class="orb-copy">Login to continue.</span>
+        </span>
+      </button>
+
+      <section class="panel minimal-panel">
+        <div id="auth-pill" class="status-pill">Inte ansluten</div>
+
+        <div class="minimal-row">
+          <input id="client-id-input" type="text" placeholder="Google Client ID" />
+          <button id="connect-button" class="primary-action" type="button">Login</button>
+          <button id="logout-button" class="secondary-action" type="button">Logout</button>
         </div>
 
-        <div class="hero-meta panel">
-          <div class="meta-item">
-            <span class="field-label">GitHub Pages Origin</span>
-            <code id="origin-output"></code>
-          </div>
-          <div class="meta-item">
-            <span class="field-label">Current URL</span>
-            <code id="pages-output"></code>
-          </div>
-          <div class="hero-meta-copy">
-            Den runda karnan ar nu huvudgranssnittet. Klick pa den for att ansluta, och Google-godkannandet behovs igen varje ny inloggning.
-          </div>
+        <form id="ask-form" class="minimal-ask">
+          <label for="question-input" class="sr-only">Din fraga</label>
+          <textarea
+            id="question-input"
+            name="question"
+            rows="5"
+            placeholder="Ask"
+          ></textarea>
+          <button id="ask-button" class="primary-action" type="submit">Ask</button>
+        </form>
+
+        <div id="answer-shell" class="answer-shell empty">
+          <p id="answer-text">Answer appears here.</p>
         </div>
-      </header>
-
-      <main class="interface-grid">
-        <section class="orb-stage">
-          <div class="mode-rail" aria-hidden="true">
-            <span id="orb-chip-auth" class="mode-chip">Authenticate</span>
-            <span id="orb-chip-scan" class="mode-chip">Scan</span>
-            <span id="orb-chip-answer" class="mode-chip">Answer</span>
-          </div>
-
-          <button id="agent-orb-button" class="agent-orb-button" type="button">
-            <span class="orb-halo orb-halo-1"></span>
-            <span class="orb-halo orb-halo-2"></span>
-            <span class="orb-halo orb-halo-3"></span>
-            <canvas id="agent-orb-canvas" class="agent-orb-canvas"></canvas>
-            <span class="orb-noise"></span>
-
-            <span class="orb-center">
-              <span class="orb-kicker">AI Agent Core</span>
-              <strong id="orb-title" class="orb-title">Waiting for signal</strong>
-              <span id="orb-copy" class="orb-copy">Paste a Google Client ID to wake the core.</span>
-            </span>
-          </button>
-
-          <div class="orb-foot">
-            <div class="orb-pill">
-              <span class="orb-pill-label">Session</span>
-              <strong id="session-indicator">Offline</strong>
-            </div>
-            <div class="orb-pill">
-              <span class="orb-pill-label">Sources</span>
-              <strong id="source-indicator">0 loaded</strong>
-            </div>
-            <div class="orb-pill">
-              <span class="orb-pill-label">Mode</span>
-              <strong id="mode-indicator">Idle</strong>
-            </div>
-          </div>
-        </section>
-
-        <section class="control-stack">
-          <section class="panel control-panel">
-            <div class="section-head compact">
-              <p class="eyebrow">Access</p>
-              <h2>Google Link</h2>
-            </div>
-
-            <div id="auth-pill" class="status-pill">Inte ansluten</div>
-            <p id="auth-copy" class="status-copy">
-              Inget losenord anges till sidan och var kod ber bara om Drive read-only-atkomst, inte e-postprofil.
-            </p>
-
-            <label class="field-label" for="client-id-input">Google Web Client ID</label>
-            <input id="client-id-input" type="text" placeholder="Klistra in ditt Google OAuth Client ID har" />
-
-            <div class="action-row">
-              <button id="connect-button" class="primary-action" type="button">Connect Google</button>
-              <button id="logout-button" class="secondary-action" type="button">Disconnect</button>
-              <button id="clear-client-id-button" class="ghost-action" type="button">Glom Client ID</button>
-            </div>
-          </section>
-
-          <section class="panel control-panel">
-            <div class="section-head compact">
-              <p class="eyebrow">Prompt</p>
-              <h2>Ask The Agent</h2>
-            </div>
-
-            <form id="ask-form" class="question-form">
-              <label for="question-input" class="sr-only">Din fraga</label>
-              <textarea
-                id="question-input"
-                name="question"
-                rows="6"
-                placeholder="Exempel: Sammanfatta vad mina senaste dokument sager om aprilplanen och vilka filer som stoder svaret."
-              ></textarea>
-              <div class="question-foot">
-                <p class="quiet-note">
-                  Ingen reminder-logik finns kvar. Det har ar nu bara en ren agentyta med samma visuella energi.
-                </p>
-                <button id="ask-button" class="primary-action" type="submit">Fraga alla kallor</button>
-              </div>
-            </form>
-          </section>
-
-          <section class="panel control-panel source-panel">
-            <div class="section-head compact">
-              <p class="eyebrow">Source Scan</p>
-              <h2>Loaded Field</h2>
-            </div>
-
-            <form id="source-form" class="source-form">
-              <input id="source-query" type="search" placeholder="Filnamn, amne eller nyckelord" />
-              <button class="secondary-action" type="submit">Sok</button>
-              <button id="refresh-button" class="ghost-action" type="button">Uppdatera</button>
-            </form>
-
-            <div id="source-summary" class="rail-note">
-              Laggt in ditt Google Client ID och anslut kontot for att lasa in kallor.
-            </div>
-
-            <div id="source-list" class="source-list" aria-live="polite"></div>
-          </section>
-        </section>
-      </main>
-
-      <section class="response-grid">
-        <section class="panel answer-panel">
-          <div class="section-head compact">
-            <p class="eyebrow">Response</p>
-            <h2>Samlat svar</h2>
-          </div>
-
-          <div id="answer-shell" class="answer-shell empty">
-            <p id="answer-text">
-              Nar du har kopplat Google kan agentkarnan lasa over flera kallor, plocka fram textutdrag och ge ett samlat svar.
-            </p>
-          </div>
-        </section>
-
-        <section class="panel meta-panel">
-          <h3>Kallor som anvandes</h3>
-          <ol id="citation-list" class="citation-list"></ol>
-        </section>
-
-        <section class="panel meta-panel">
-          <h3>Matchade filer</h3>
-          <ul id="matched-list" class="plain-list"></ul>
-        </section>
-
-        <section class="panel meta-panel">
-          <h3>Hoppades over</h3>
-          <ul id="skipped-list" class="plain-list"></ul>
-        </section>
       </section>
-    </div>
+
+      <div class="app-hidden" aria-hidden="true">
+        <span id="auth-copy"></span>
+        <code id="origin-output"></code>
+        <code id="pages-output"></code>
+        <button id="clear-client-id-button" type="button">Clear</button>
+        <span id="orb-chip-auth" class="mode-chip"></span>
+        <span id="orb-chip-scan" class="mode-chip"></span>
+        <span id="orb-chip-answer" class="mode-chip"></span>
+        <strong id="session-indicator">Offline</strong>
+        <strong id="source-indicator">0 loaded</strong>
+        <strong id="mode-indicator">Idle</strong>
+        <form id="source-form">
+          <input id="source-query" type="search" />
+          <button id="refresh-button" type="button">Refresh</button>
+        </form>
+        <div id="source-summary"></div>
+        <div id="source-list"></div>
+        <ol id="citation-list"></ol>
+        <ul id="matched-list"></ul>
+        <ul id="skipped-list"></ul>
+      </div>
+    </main>
 
     <script src="./app.js" defer></script>
   </body>

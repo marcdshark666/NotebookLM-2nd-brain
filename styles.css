@@ -67,6 +67,17 @@ body::before {
   padding: 24px 0 42px;
 }
 
+.minimal-shell {
+  width: min(1000px, calc(100vw - 28px));
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 18px 0 28px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 20px;
+}
+
 .panel {
   background: linear-gradient(180deg, rgba(12, 16, 22, 0.92), rgba(8, 12, 16, 0.76));
   border: 1px solid var(--line);
@@ -224,6 +235,29 @@ code {
     radial-gradient(circle at center, rgba(28, 46, 66, 0.4), rgba(8, 10, 14, 0.04) 58%, transparent 74%);
   cursor: pointer;
   isolation: isolate;
+}
+
+.minimal-panel {
+  width: min(760px, 100%);
+  padding: 22px;
+  display: grid;
+  gap: 14px;
+}
+
+.minimal-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.minimal-ask {
+  display: grid;
+  gap: 12px;
+}
+
+.app-hidden {
+  display: none !important;
 }
 
 .agent-orb-button:focus-visible {
@@ -689,6 +723,11 @@ input[type="text"]:focus {
     padding-top: 18px;
   }
 
+  .minimal-shell {
+    width: min(100vw - 18px, 1000px);
+    padding-top: 14px;
+  }
+
   h1 {
     font-size: clamp(2.8rem, 15vw, 4.8rem);
   }
@@ -707,6 +746,14 @@ input[type="text"]:focus {
 
   .orb-center {
     inset: 28%;
+  }
+
+  .minimal-panel {
+    padding: 18px;
+  }
+
+  .minimal-row {
+    grid-template-columns: 1fr;
   }
 
   .action-row,
