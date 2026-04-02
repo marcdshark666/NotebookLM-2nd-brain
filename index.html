@@ -21,17 +21,13 @@
         <span class="orb-center">
           <span class="orb-kicker">AI Agent</span>
           <strong id="orb-title" class="orb-title">Waiting</strong>
-          <span id="orb-copy" class="orb-copy">Login to continue.</span>
+          <span id="orb-copy" class="orb-copy">Login with Google to continue.</span>
         </span>
       </button>
 
       <section class="panel minimal-panel">
-        <div id="auth-pill" class="status-pill">Inte ansluten</div>
-
-        <div class="minimal-row">
-          <input id="client-id-input" type="text" placeholder="Google Client ID" />
-          <button id="connect-button" class="primary-action" type="button">Login</button>
-          <button id="logout-button" class="secondary-action" type="button">Logout</button>
+        <div class="minimal-row minimal-row-single">
+          <button id="connect-button" class="primary-action" type="button">Login with Google</button>
         </div>
 
         <form id="ask-form" class="minimal-ask">
@@ -39,21 +35,24 @@
           <textarea
             id="question-input"
             name="question"
-            rows="5"
+            rows="4"
             placeholder="Ask"
           ></textarea>
           <button id="ask-button" class="primary-action" type="submit">Ask</button>
         </form>
 
         <div id="answer-shell" class="answer-shell empty">
-          <p id="answer-text">Answer appears here.</p>
+          <p id="answer-text"></p>
         </div>
       </section>
 
       <div class="app-hidden" aria-hidden="true">
+        <div id="auth-pill" class="status-pill"></div>
         <span id="auth-copy"></span>
+        <input id="client-id-input" type="text" />
         <code id="origin-output"></code>
         <code id="pages-output"></code>
+        <button id="logout-button" type="button">Logout</button>
         <button id="clear-client-id-button" type="button">Clear</button>
         <span id="orb-chip-auth" class="mode-chip"></span>
         <span id="orb-chip-scan" class="mode-chip"></span>

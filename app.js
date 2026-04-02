@@ -2,6 +2,10 @@ const STORAGE_KEYS = {
   clientId: "notebookBridge.googleClientId",
 };
 
+const APP_CONFIG = {
+  googleClientId: window.NOTEBOOK_BRIDGE_GOOGLE_CLIENT_ID || "",
+};
+
 const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 
 const GOOGLE_EXPORT_TYPES = new Map([
@@ -109,13 +113,22 @@ async function boot() {
 
 function wireEvents() {
   elements.clientIdInput.addEventListener("input", handleClientIdInput);
-  elements.connectButton.addEventListener("click", handleConnect);
+  elements.connectButton.addEventListener("click", handleConnectButton);
   elements.logoutButton.addEventListener("click", handleDisconnect);
   elements.clearClientIdButton.addEventListener("click", handleClearClientId);
   elements.agentOrbButton.addEventListener("click", handleAgentOrbClick);
   elements.askForm.addEventListener("submit", handleAsk);
   elements.sourceForm.addEventListener("submit", handleSourceSearch);
   elements.refreshButton.addEventListener("click", () => loadSources(elements.sourceQuery.value.trim()));
+}
+
+async function handleConnectButton() {
+  if (hasActiveSession()) {
+    await handleDisconnect();
+    return;
+  }
+
+  await handleConnect();
 }
 
 function initAgentOrb() {
@@ -278,12 +291,6 @@ function getOrbProfile() {
 }
 
 async function handleAgentOrbClick() {
-  if (!state.clientId) {
-    elements.clientIdInput.focus();
-    setAnswerText("Klistra in ditt Google Web Client ID for att aktivera karnan.");
-    return;
-  }
-
   if (!hasActiveSession()) {
     await handleConnect();
     return;
@@ -295,32 +302,32 @@ async function handleAgentOrbClick() {
 function renderAgentSurface() {
   const connected = hasActiveSession();
   const sourceCount = state.lastSources.length;
-  let title = "Waiting for signal";
-  let copy = "Paste a Google Client ID to wake the core.";
+  let title = "Waiting";
+  let copy = "Login with Google to wake the agent.";
   let mode = "Idle";
   let session = "Offline";
 
   if (!state.clientId) {
-    title = "Awaiting client";
-    copy = "Paste a Google Web Client ID to wake the core.";
+    title = "Login ready";
+    copy = "Tap login to add your Google client once and start the session.";
     mode = "Setup";
   } else if (!connected) {
-    title = "Ready to link";
-    copy = "Click the core or use Connect Google to bring your sources online.";
+    title = "Login ready";
+    copy = "Login with Google to bring your sources online.";
     mode = "Authenticate";
   } else if (state.isAsking) {
-    title = "Synthesizing";
-    copy = "Scanning extracts and shaping a combined answer.";
+    title = "Scanning";
+    copy = "Reading matches and shaping one answer back.";
     mode = "Answer";
     session = "Connected";
   } else if (state.isLoadingSources) {
-    title = "Scanning field";
+    title = "Linking";
     copy = "Refreshing the source layer around your agent.";
     mode = "Scan";
     session = "Connected";
   } else {
-    title = "Ready for prompt";
-    copy = "One question in. Multiple sources scanned back.";
+    title = "Ready";
+    copy = "Ask one question. Get one combined answer back.";
     mode = "Linked";
     session = "Connected";
   }
@@ -346,7 +353,7 @@ function renderLocationInfo() {
 }
 
 function restoreClientId() {
-  state.clientId = localStorage.getItem(STORAGE_KEYS.clientId) || "";
+  state.clientId = localStorage.getItem(STORAGE_KEYS.clientId) || APP_CONFIG.googleClientId || "";
   elements.clientIdInput.value = state.clientId;
 }
 
@@ -364,7 +371,7 @@ function clearSession(render = true) {
 
   if (render) {
     renderAuth();
-    elements.sourceSummary.textContent = "Laggt in ditt Google Client ID och anslut kontot for att lasa in kallor.";
+    elements.sourceSummary.textContent = "Logga in med Google for att lasa in kallor.";
     elements.sourceList.innerHTML = "";
     renderAgentSurface();
   }
@@ -382,8 +389,8 @@ function handleClientIdInput(event) {
 }
 
 async function handleConnect() {
-  if (!state.clientId) {
-    setAnswerText("Lagg in ditt Google Web Client ID forst.");
+  if (!ensureClientId()) {
+    setAnswerText("Google Client ID behovs innan Google kan oppnas.");
     return;
   }
 
@@ -395,7 +402,7 @@ async function handleConnect() {
     persistSession();
     renderAuth();
     renderAgentSurface();
-    setAnswerText("Google Drive-atkomst ar ansluten. Sidan kan nu lasa dina kallor utan att var kod begar e-post eller losenord.");
+    setAnswerText("Google ar anslutet. Du kan nu fraga agenten.");
     await loadSources("");
   } catch (error) {
     setAnswerText(error.message || "Google-anslutningen misslyckades.");
@@ -415,7 +422,7 @@ async function handleDisconnect() {
   }
 
   clearSession();
-  setAnswerText("Anslutningen rensades. Klicka pa Connect Google om du vill ge atkomst igen.");
+  setAnswerText("Sessionen ar stangd.");
   renderAgentSurface();
 }
 
@@ -426,6 +433,24 @@ function handleClearClientId() {
   clearSession();
   setAnswerText("Client ID togs bort fran webblasaren.");
   renderAgentSurface();
+}
+
+function ensureClientId() {
+  if (state.clientId) return true;
+
+  const providedClientId = window.prompt("Klistra in ditt Google Web Client ID");
+  const normalizedClientId = String(providedClientId || "").trim();
+
+  if (!normalizedClientId) {
+    return false;
+  }
+
+  state.clientId = normalizedClientId;
+  elements.clientIdInput.value = normalizedClientId;
+  localStorage.setItem(STORAGE_KEYS.clientId, normalizedClientId);
+  renderAuth();
+  renderAgentSurface();
+  return true;
 }
 
 async function requestGoogleToken(promptValue) {
@@ -475,35 +500,34 @@ async function waitForGoogle() {
 
 function renderAuth() {
   const connected = hasActiveSession();
-  elements.connectButton.disabled = !state.clientId;
+  elements.connectButton.disabled = false;
   elements.logoutButton.disabled = !connected;
   elements.askButton.disabled = !connected;
 
   elements.authPill.textContent = connected ? "Ansluten till Google" : "Inte ansluten";
   elements.authPill.className = `status-pill ${connected ? "connected" : "disconnected"}`;
+  elements.connectButton.textContent = connected ? "Logout" : "Login with Google";
 
   if (!state.clientId) {
-    elements.authCopy.textContent =
-      "Borja med att skapa ett Google Web Client ID, lagg in origin ovan i Google Cloud och klistra sedan in Client ID har.";
+    elements.authCopy.textContent = "Google Client ID saknas fortfarande i den har webblasaren.";
     renderAgentSurface();
     return;
   }
 
   if (!connected) {
-    elements.authCopy.textContent =
-      "Client ID ar sparat lokalt, men ingen inloggning sparas. Du maste godkanna Google pa nytt varje gang du loggar in igen.";
+    elements.authCopy.textContent = "Google maste godkannas pa nytt varje ny inloggning.";
     renderAgentSurface();
     return;
   }
 
   const minutesLeft = Math.max(1, Math.round((state.expiresAt - Date.now()) / 60_000));
-  elements.authCopy.textContent = `Google Drive-atkomst ar ansluten. Sidan ber bara om Drive read-only scope och lagrar inte din e-postadress. Access-token ar aktiv i ungefar ${minutesLeft} minuter eller tills du disconnectar.`;
+  elements.authCopy.textContent = `Google-sessionen ar aktiv i ungefar ${minutesLeft} minuter till.`;
   renderAgentSurface();
 }
 
 function setConnectBusy(active) {
-  elements.connectButton.disabled = active || !state.clientId;
-  elements.connectButton.textContent = active ? "Ansluter..." : "Connect Google";
+  elements.connectButton.disabled = active;
+  elements.connectButton.textContent = active ? "Opening Google..." : hasActiveSession() ? "Logout" : "Login with Google";
 }
 
 async function handleAsk(event) {
@@ -513,13 +537,13 @@ async function handleAsk(event) {
   if (!question) return;
 
   if (!hasActiveSession()) {
-    setAnswerText("Anslut Google forst. GitHub Pages-versionen kan inte lasa dina kallor utan en aktiv access token.");
+    setAnswerText("Logga in med Google forst.");
     return;
   }
 
   try {
     setAskBusy(true);
-    setAnswerText("Soker efter relevanta kallor och bygger ett samlat svar...");
+    setAnswerText("Laser kallor och bygger ett samlat svar...");
     clearLists();
     const payload = await answerQuestionAcrossSources(question);
     renderAnswer(payload);
@@ -537,7 +561,7 @@ async function handleSourceSearch(event) {
 
 async function loadSources(query) {
   if (!hasActiveSession()) {
-    elements.sourceSummary.textContent = "Anslut Google forst for att lasa in kallor.";
+    elements.sourceSummary.textContent = "Logga in med Google forst.";
     elements.sourceList.innerHTML = "";
     state.lastSources = [];
     renderAgentSurface();
@@ -671,7 +695,7 @@ async function fetchGoogleText(url) {
 
 async function fetchWithToken(url) {
   if (!hasActiveSession()) {
-    throw new Error("Google-sessionen har gatt ut. Klicka pa Connect Google igen.");
+    throw new Error("Google-sessionen har gatt ut. Logga in igen.");
   }
 
   const response = await fetch(url, {
@@ -682,7 +706,7 @@ async function fetchWithToken(url) {
 
   if (response.status === 401) {
     clearSession();
-    throw new Error("Access-token gick ut eller avvisades. Klicka pa Connect Google igen.");
+    throw new Error("Access-token gick ut eller avvisades. Logga in igen.");
   }
 
   if (!response.ok) {
@@ -816,7 +840,7 @@ function renderSources(files, query = "") {
 function setAskBusy(active) {
   state.isAsking = active;
   elements.askButton.disabled = active || !hasActiveSession();
-  elements.askButton.textContent = active ? "Arbetar..." : "Fraga alla kallor";
+  elements.askButton.textContent = active ? "Thinking..." : "Ask";
   renderAgentSurface();
 }
 
