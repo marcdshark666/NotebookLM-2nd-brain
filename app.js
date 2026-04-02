@@ -1,6 +1,5 @@
 const STORAGE_KEYS = {
   clientId: "notebookBridge.googleClientId",
-  session: "notebookBridge.session",
 };
 
 const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
@@ -102,22 +101,10 @@ boot();
 async function boot() {
   renderLocationInfo();
   restoreClientId();
-  restoreSession();
   wireEvents();
   initAgentOrb();
   renderAuth();
   renderAgentSurface();
-
-  if (hasActiveSession()) {
-    try {
-      renderAuth();
-      await loadSources("");
-    } catch (error) {
-      clearSession(false);
-      renderAuth();
-      setAnswerText(error.message || "Sessionen kunde inte ateranvandas.");
-    }
-  }
 }
 
 function wireEvents() {
@@ -363,32 +350,9 @@ function restoreClientId() {
   elements.clientIdInput.value = state.clientId;
 }
 
-function restoreSession() {
-  const rawSession = sessionStorage.getItem(STORAGE_KEYS.session);
-
-  if (!rawSession) return;
-
-  try {
-    const parsed = JSON.parse(rawSession);
-    if (parsed.expiresAt > Date.now() + 30_000 && parsed.accessToken) {
-      state.accessToken = parsed.accessToken;
-      state.expiresAt = parsed.expiresAt;
-    } else {
-      clearSession(false);
-    }
-  } catch {
-    clearSession(false);
-  }
-}
-
 function persistSession() {
-  sessionStorage.setItem(
-    STORAGE_KEYS.session,
-    JSON.stringify({
-      accessToken: state.accessToken,
-      expiresAt: state.expiresAt,
-    })
-  );
+  // Intentionally no-op.
+  // We do not persist access tokens between page loads, so Google re-authorization is required again.
 }
 
 function clearSession(render = true) {
@@ -397,7 +361,6 @@ function clearSession(render = true) {
   state.lastSources = [];
   state.isAsking = false;
   state.isLoadingSources = false;
-  sessionStorage.removeItem(STORAGE_KEYS.session);
 
   if (render) {
     renderAuth();
@@ -528,7 +491,7 @@ function renderAuth() {
 
   if (!connected) {
     elements.authCopy.textContent =
-      "Client ID ar sparat lokalt i webblasaren. Klicka pa Connect Google for att ge tillfallig access token till dina Drive-kallor.";
+      "Client ID ar sparat lokalt, men ingen inloggning sparas. Du maste godkanna Google pa nytt varje gang du loggar in igen.";
     renderAgentSurface();
     return;
   }
