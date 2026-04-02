@@ -14,6 +14,7 @@ https://marcdshark666.github.io/NotebookLM-2nd-brain/
 
 - Uses Google OAuth in the browser through the Google Identity Services token model
 - Requires only a Google Web Client ID, not a client secret
+- Requests only `https://www.googleapis.com/auth/drive.readonly`, not email or profile scopes
 - Searches across Drive files using Drive metadata and full-text search
 - Extracts text from:
   - Google Docs
@@ -59,6 +60,7 @@ The site stores only the client ID locally in the browser. When you click **Conn
 ## How auth works on GitHub Pages
 
 - The site never asks for your Google password directly
+- The site can be configured to avoid requesting your email/profile scope entirely
 - The access token stays in browser storage for the current session
 - If the token expires, you reconnect with one button click
 - Because this is a static site, there is no server-side refresh token store

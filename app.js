@@ -1,15 +1,9 @@
 const STORAGE_KEYS = {
   clientId: "notebookBridge.googleClientId",
-  profile: "notebookBridge.profile",
   session: "notebookBridge.session",
 };
 
-const GOOGLE_SCOPE = [
-  "openid",
-  "email",
-  "profile",
-  "https://www.googleapis.com/auth/drive.readonly",
-].join(" ");
+const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 
 const GOOGLE_EXPORT_TYPES = new Map([
   ["application/vnd.google-apps.document", "text/plain"],
@@ -95,7 +89,6 @@ const state = {
   clientId: "",
   accessToken: "",
   expiresAt: 0,
-  profile: null,
   lastSources: [],
   isAsking: false,
   isLoadingSources: false,
@@ -117,7 +110,6 @@ async function boot() {
 
   if (hasActiveSession()) {
     try {
-      await hydrateProfile();
       renderAuth();
       await loadSources("");
     } catch (error) {
@@ -333,17 +325,17 @@ function renderAgentSurface() {
     title = "Synthesizing";
     copy = "Scanning extracts and shaping a combined answer.";
     mode = "Answer";
-    session = state.profile?.name || state.profile?.email || "Connected";
+    session = "Connected";
   } else if (state.isLoadingSources) {
     title = "Scanning field";
     copy = "Refreshing the source layer around your agent.";
     mode = "Scan";
-    session = state.profile?.name || state.profile?.email || "Connected";
+    session = "Connected";
   } else {
     title = "Ready for prompt";
     copy = "One question in. Multiple sources scanned back.";
     mode = "Linked";
-    session = state.profile?.name || state.profile?.email || "Connected";
+    session = "Connected";
   }
 
   elements.orbTitle.textContent = title;
@@ -373,14 +365,6 @@ function restoreClientId() {
 
 function restoreSession() {
   const rawSession = sessionStorage.getItem(STORAGE_KEYS.session);
-  const rawProfile = sessionStorage.getItem(STORAGE_KEYS.profile) || localStorage.getItem(STORAGE_KEYS.profile);
-  if (rawProfile) {
-    try {
-      state.profile = JSON.parse(rawProfile);
-    } catch {
-      state.profile = null;
-    }
-  }
 
   if (!rawSession) return;
 
@@ -405,24 +389,15 @@ function persistSession() {
       expiresAt: state.expiresAt,
     })
   );
-
-  if (state.profile) {
-    const serialized = JSON.stringify(state.profile);
-    sessionStorage.setItem(STORAGE_KEYS.profile, serialized);
-    localStorage.setItem(STORAGE_KEYS.profile, serialized);
-  }
 }
 
 function clearSession(render = true) {
   state.accessToken = "";
   state.expiresAt = 0;
-  state.profile = null;
   state.lastSources = [];
   state.isAsking = false;
   state.isLoadingSources = false;
   sessionStorage.removeItem(STORAGE_KEYS.session);
-  sessionStorage.removeItem(STORAGE_KEYS.profile);
-  localStorage.removeItem(STORAGE_KEYS.profile);
 
   if (render) {
     renderAuth();
@@ -454,11 +429,10 @@ async function handleConnect() {
     const tokenResponse = await requestGoogleToken("consent");
     state.accessToken = tokenResponse.access_token;
     state.expiresAt = Date.now() + Math.max(Number(tokenResponse.expires_in || 3600) - 60, 60) * 1000;
-    await hydrateProfile();
     persistSession();
     renderAuth();
     renderAgentSurface();
-    setAnswerText("Google-kontot ar anslutet. Nu kan sidan lasa kallor direkt i webblasaren.");
+    setAnswerText("Google Drive-atkomst ar ansluten. Sidan kan nu lasa dina kallor utan att var kod begar e-post eller losenord.");
     await loadSources("");
   } catch (error) {
     setAnswerText(error.message || "Google-anslutningen misslyckades.");
@@ -536,13 +510,6 @@ async function waitForGoogle() {
   });
 }
 
-async function hydrateProfile() {
-  if (!hasActiveSession()) return null;
-  state.profile = await fetchGoogleJson("https://www.googleapis.com/oauth2/v3/userinfo");
-  persistSession();
-  return state.profile;
-}
-
 function renderAuth() {
   const connected = hasActiveSession();
   elements.connectButton.disabled = !state.clientId;
@@ -567,8 +534,7 @@ function renderAuth() {
   }
 
   const minutesLeft = Math.max(1, Math.round((state.expiresAt - Date.now()) / 60_000));
-  const profileText = state.profile?.name || state.profile?.email || "Ditt Google-konto";
-  elements.authCopy.textContent = `${profileText} ar anslutet. Access-token ar aktiv i ungefar ${minutesLeft} minuter eller tills du disconnectar.`;
+  elements.authCopy.textContent = `Google Drive-atkomst ar ansluten. Sidan ber bara om Drive read-only scope och lagrar inte din e-postadress. Access-token ar aktiv i ungefar ${minutesLeft} minuter eller tills du disconnectar.`;
   renderAgentSurface();
 }
 
