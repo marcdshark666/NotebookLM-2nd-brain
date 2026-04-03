@@ -6,6 +6,8 @@ const APP_CONFIG = {
   googleClientId: window.NOTEBOOK_BRIDGE_GOOGLE_CLIENT_ID || "",
 };
 
+const GOOGLE_CLIENT_ID_PATTERN = /^\d+-[a-z0-9._-]+\.apps\.googleusercontent\.com$/i;
+
 const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 
 const GOOGLE_EXPORT_TYPES = new Map([
@@ -353,8 +355,24 @@ function renderLocationInfo() {
 }
 
 function restoreClientId() {
-  state.clientId = localStorage.getItem(STORAGE_KEYS.clientId) || APP_CONFIG.googleClientId || "";
-  elements.clientIdInput.value = state.clientId;
+  const storedClientId = normalizeClientId(localStorage.getItem(STORAGE_KEYS.clientId));
+  const configuredClientId = normalizeClientId(APP_CONFIG.googleClientId);
+
+  if (isValidGoogleClientId(storedClientId)) {
+    applyClientId(storedClientId, { persist: true });
+    return;
+  }
+
+  if (storedClientId) {
+    localStorage.removeItem(STORAGE_KEYS.clientId);
+  }
+
+  if (isValidGoogleClientId(configuredClientId)) {
+    applyClientId(configuredClientId, { persist: false });
+    return;
+  }
+
+  clearClientIdState();
 }
 
 function persistSession() {
@@ -382,8 +400,16 @@ function hasActiveSession() {
 }
 
 function handleClientIdInput(event) {
-  state.clientId = String(event.target.value || "").trim();
-  localStorage.setItem(STORAGE_KEYS.clientId, state.clientId);
+  const nextValue = normalizeClientId(event.target.value);
+
+  if (!nextValue) {
+    clearClientIdState();
+  } else if (isValidGoogleClientId(nextValue)) {
+    applyClientId(nextValue, { persist: true });
+  } else {
+    clearClientIdState();
+  }
+
   renderAuth();
   renderAgentSurface();
 }
@@ -405,7 +431,7 @@ async function handleConnect() {
     setAnswerText("Google ar anslutet. Du kan nu fraga agenten.");
     await loadSources("");
   } catch (error) {
-    setAnswerText(error.message || "Google-anslutningen misslyckades.");
+    handleGoogleConnectError(error);
   } finally {
     setConnectBusy(false);
   }
@@ -427,27 +453,33 @@ async function handleDisconnect() {
 }
 
 function handleClearClientId() {
-  localStorage.removeItem(STORAGE_KEYS.clientId);
-  state.clientId = "";
-  elements.clientIdInput.value = "";
+  clearClientIdState();
   clearSession();
   setAnswerText("Client ID togs bort fran webblasaren.");
   renderAgentSurface();
 }
 
 function ensureClientId() {
-  if (state.clientId) return true;
+  if (isValidGoogleClientId(state.clientId)) return true;
 
-  const providedClientId = window.prompt("Klistra in ditt Google Web Client ID");
-  const normalizedClientId = String(providedClientId || "").trim();
+  clearClientIdState();
+
+  const providedClientId = window.prompt(
+    "Klistra in ditt Google Web Client ID, inte din e-postadress.\nExempel: 123456789012-abc123def456.apps.googleusercontent.com"
+  );
+  const normalizedClientId = normalizeClientId(providedClientId);
 
   if (!normalizedClientId) {
     return false;
   }
 
-  state.clientId = normalizedClientId;
-  elements.clientIdInput.value = normalizedClientId;
-  localStorage.setItem(STORAGE_KEYS.clientId, normalizedClientId);
+  if (!isValidGoogleClientId(normalizedClientId)) {
+    clearClientIdState();
+    setAnswerText("Det dar ser inte ut som ett Google Web Client ID. Anvand vardet som slutar med .apps.googleusercontent.com.");
+    return false;
+  }
+
+  applyClientId(normalizedClientId, { persist: true });
   renderAuth();
   renderAgentSurface();
   return true;
@@ -842,6 +874,47 @@ function setAskBusy(active) {
   elements.askButton.disabled = active || !hasActiveSession();
   elements.askButton.textContent = active ? "Thinking..." : "Ask";
   renderAgentSurface();
+}
+
+function handleGoogleConnectError(error) {
+  const message = String(error?.message || "").trim();
+
+  if (message.includes("invalid_client")) {
+    clearClientIdState();
+    clearSession(false);
+    renderAuth();
+    renderAgentSurface();
+    setAnswerText("Det sparade vardet var inte ett giltigt Google Web Client ID for web. Jag tog bort det lokalt, sa din e-post sparas inte har.");
+    return;
+  }
+
+  setAnswerText(message || "Google-anslutningen misslyckades.");
+}
+
+function normalizeClientId(value) {
+  return String(value || "").trim();
+}
+
+function isValidGoogleClientId(value) {
+  return GOOGLE_CLIENT_ID_PATTERN.test(normalizeClientId(value));
+}
+
+function applyClientId(clientId, options = {}) {
+  const persist = options.persist !== false;
+  const normalizedClientId = normalizeClientId(clientId);
+
+  state.clientId = normalizedClientId;
+  elements.clientIdInput.value = normalizedClientId;
+
+  if (persist) {
+    localStorage.setItem(STORAGE_KEYS.clientId, normalizedClientId);
+  }
+}
+
+function clearClientIdState() {
+  state.clientId = "";
+  elements.clientIdInput.value = "";
+  localStorage.removeItem(STORAGE_KEYS.clientId);
 }
 
 function clearLists() {
