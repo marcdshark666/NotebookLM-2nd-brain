@@ -6,6 +6,9 @@ const APP_CONFIG = {
   googleClientId: window.NOTEBOOK_BRIDGE_GOOGLE_CLIENT_ID || "",
 };
 
+const BRIDGE_REQUEST_SOURCE = "notebook-bridge-page";
+const BRIDGE_RESPONSE_SOURCE = "notebook-bridge-extension";
+const BROWSER_BRIDGE_TIMEOUT_MS = 150000;
 const GOOGLE_CLIENT_ID_PATTERN = /^\d+-[a-z0-9._-]+\.apps\.googleusercontent\.com$/i;
 const GOOGLE_LOGIN_PROMPT = "select_account consent";
 const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
@@ -117,6 +120,7 @@ const state = {
   accessToken: "",
   expiresAt: 0,
   lastSources: [],
+  browserBridgeAvailable: false,
   isAsking: false,
   isLoadingSources: false,
   orbAnimationFrame: 0,
@@ -133,6 +137,7 @@ async function boot() {
   initAgentOrb();
   renderAuth();
   renderAgentSurface();
+  void detectBrowserBridge();
 }
 
 function wireEvents() {
@@ -333,11 +338,15 @@ function renderAgentSurface() {
 
   if (!state.clientId) {
     title = "Login ready";
-    copy = "You can ask directly now, or add Google later for Drive search.";
+    copy = state.browserBridgeAvailable
+      ? "Ask directly. The local NotebookLM bridge is ready."
+      : "You can ask directly now, or add Google later for Drive search.";
     mode = "Setup";
   } else if (!connected) {
     title = "Login ready";
-    copy = "Ask directly, or login with Google and choose one of your existing accounts.";
+    copy = state.browserBridgeAvailable
+      ? "Ask directly with the NotebookLM bridge, or login with Google for Drive search."
+      : "Ask directly, or login with Google and choose one of your existing accounts.";
     mode = "Authenticate";
   } else if (state.isAsking) {
     title = "Scanning";
@@ -595,9 +604,11 @@ async function handleAsk(event) {
     setAnswerText("Analyserar fragan och matchar relevanta notebooks...");
     renderAnswerMeta([]);
     clearLists();
-    const payload = hasActiveSession()
-      ? await answerQuestionAcrossSources(question)
-      : answerQuestionAcrossNotebooks(question);
+    const browserBridgePayload = await answerQuestionViaBrowserBridge(question);
+    const payload = browserBridgePayload
+      || (hasActiveSession()
+        ? await answerQuestionAcrossSources(question)
+        : answerQuestionAcrossNotebooks(question));
     renderAnswer(payload);
   } catch (error) {
     setAnswerText(error.message || "Det gick inte att bearbeta fragan.");
@@ -746,6 +757,44 @@ function answerQuestionAcrossNotebooks(question) {
     matchedFiles: [],
     skippedFiles: [],
   };
+}
+
+async function answerQuestionViaBrowserBridge(question) {
+  const notebookMatches = rankRelevantNotebooks(question).slice(0, 3);
+  if (!notebookMatches.length) return null;
+
+  const bridgeReady = await detectBrowserBridge();
+  if (!bridgeReady) return null;
+
+  try {
+    const payload = await sendBridgeRequest(
+      "ASK_NOTEBOOKS",
+      {
+        question,
+        notebooks: notebookMatches,
+      },
+      BROWSER_BRIDGE_TIMEOUT_MS
+    );
+
+    const responses = Array.isArray(payload?.responses) ? payload.responses : [];
+    const successful = responses.filter((response) => response?.ok && response?.answer);
+    if (!successful.length) return null;
+
+    return {
+      answer: buildBrowserBridgeAnswer(question, successful),
+      notebookMatches: successful.map((response) => ({
+        title: response.title || response.requestedTitle || "NotebookLM",
+        url: response.url || "",
+      })),
+      citations: [],
+      matchedFiles: [],
+      skippedFiles: [],
+    };
+  } catch {
+    state.browserBridgeAvailable = false;
+    renderAgentSurface();
+    return null;
+  }
 }
 
 async function downloadFileText(file) {
@@ -965,6 +1014,62 @@ function handleGoogleConnectError(error) {
   setAnswerText(message || "Google-anslutningen misslyckades.");
 }
 
+async function detectBrowserBridge() {
+  try {
+    const payload = await sendBridgeRequest("PING", {}, 2500);
+    state.browserBridgeAvailable = Boolean(payload?.ready);
+  } catch {
+    state.browserBridgeAvailable = false;
+  }
+
+  renderAgentSurface();
+  return state.browserBridgeAvailable;
+}
+
+function sendBridgeRequest(type, payload, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const requestId = createRequestId();
+    const timer = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("Notebook bridge timeout"));
+    }, timeoutMs);
+
+    const handleMessage = (event) => {
+      if (event.source !== window) return;
+      const data = event.data;
+      if (!data || data.source !== BRIDGE_RESPONSE_SOURCE || data.requestId !== requestId) return;
+
+      cleanup();
+      if (data.ok === false) {
+        reject(new Error(data.error || "Notebook bridge error"));
+        return;
+      }
+
+      resolve(data.payload || {});
+    };
+
+    const cleanup = () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("message", handleMessage);
+    };
+
+    window.addEventListener("message", handleMessage);
+    window.postMessage(
+      {
+        source: BRIDGE_REQUEST_SOURCE,
+        type,
+        requestId,
+        payload,
+      },
+      window.location.origin
+    );
+  });
+}
+
+function createRequestId() {
+  return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function normalizeClientId(value) {
   return String(value || "").trim();
 }
@@ -1054,6 +1159,19 @@ function rankRelevantNotebooks(question) {
     .sort((left, right) => right.score - left.score);
 
   return scored.filter((notebook, index) => notebook.score > 0 || index === 0);
+}
+
+function buildBrowserBridgeAnswer(question, responses) {
+  const sections = responses.slice(0, 3).map((response) => {
+    const title = response.title || response.requestedTitle || "NotebookLM";
+    const cleanedAnswer = squeezeWhitespace(response.answer).slice(0, 1800);
+    return `${title}: ${cleanedAnswer}`;
+  });
+
+  return [
+    `NotebookLM-svar for fragan "${question}":`,
+    sections.join("\n\n"),
+  ].join("\n\n");
 }
 
 function serializeFile(file) {

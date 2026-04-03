@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "NotebookLM 2nd Brain Bridge",
+  "version": "0.1.0",
+  "description": "Bridges the NotebookLM 2nd Brain page with open NotebookLM tabs so prompts can be sent and answers returned locally.",
+  "permissions": [
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://notebooklm.google.com/*",
+    "https://marcdshark666.github.io/NotebookLM-2nd-brain/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://marcdshark666.github.io/NotebookLM-2nd-brain/*"
+      ],
+      "js": [
+        "pages-bridge.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://notebooklm.google.com/notebook/*"
+      ],
+      "js": [
+        "notebooklm-bridge.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "NotebookLM 2nd Brain Bridge"
+  }
+}

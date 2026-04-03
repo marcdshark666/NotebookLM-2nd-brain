@@ -2,6 +2,8 @@
 
 This repository now includes a GitHub Pages-compatible version of the project in the repo root. It runs entirely in the browser, uses Google's popup-based token flow, and searches across your Google Drive-readable sources without asking for your Google password inside the site.
 
+It also now includes an experimental local browser bridge in `extension/` that can route a prompt from the GitHub Pages app into open NotebookLM tabs and return the visible answer text back to the page.
+
 This is the practical workaround for a current NotebookLM limitation: Google's official help describes notebooks as separate workspaces, and I could not find an official public NotebookLM API in Google's developer docs as of April 2, 2026. Because GitHub Pages cannot safely host a server-side client secret, the live site uses Google Identity Services in the browser instead of the earlier server prototype.
 
 ## Live site
@@ -23,6 +25,8 @@ https://marcdshark666.github.io/NotebookLM-2nd-brain/
   - Google Sheets as CSV
   - plain text, Markdown, CSV, JSON, HTML, XML, and similar text files
 - Returns one combined answer plus source citations
+- Can route a question to named NotebookLM links that you add to the page config
+- Can use a local browser extension bridge to send prompts into open NotebookLM tabs and read the returned answer text back into the output area
 
 ## What it does not do yet
 
@@ -30,6 +34,34 @@ https://marcdshark666.github.io/NotebookLM-2nd-brain/
 - It does not read private NotebookLM notebook internals directly
 - It does not yet extract PDFs, images, audio, or video
 - It does not keep long-lived background auth on GitHub Pages
+- The browser bridge is DOM-automation based and therefore unofficial and more fragile than a real API
+
+## Local NotebookLM bridge
+
+The `extension/` folder contains a Manifest V3 browser extension for Chrome or Edge.
+
+What it does:
+
+- Connects the live GitHub Pages app to NotebookLM tabs in your current browser profile
+- Lets the page send a prompt to relevant NotebookLM notebook tabs
+- Reads the visible answer text back from those tabs and returns it to the page output
+
+How to install:
+
+1. Open `chrome://extensions` or `edge://extensions`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select the `extension/` folder from this repository.
+5. Keep your NotebookLM notebooks accessible in the same logged-in browser profile.
+
+How it behaves:
+
+- If the extension is installed, the page tries the NotebookLM bridge first when you use `Ask`
+- If the bridge is not installed or a notebook does not answer, the page falls back to the built-in notebook-routing logic
+
+Important limitation:
+
+- This bridge does not use an official public NotebookLM chat API. It automates the NotebookLM web UI in your local browser session and reads back the visible response text.
 
 ## Setup for the live GitHub Pages site
 
