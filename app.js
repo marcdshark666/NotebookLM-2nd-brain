@@ -7,7 +7,7 @@ const APP_CONFIG = {
 };
 
 const GOOGLE_CLIENT_ID_PATTERN = /^\d+-[a-z0-9._-]+\.apps\.googleusercontent\.com$/i;
-
+const GOOGLE_LOGIN_PROMPT = "select_account consent";
 const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 
 const GOOGLE_EXPORT_TYPES = new Map([
@@ -315,7 +315,7 @@ function renderAgentSurface() {
     mode = "Setup";
   } else if (!connected) {
     title = "Login ready";
-    copy = "Login with Google to bring your sources online.";
+    copy = "Login with Google and choose one of your existing accounts.";
     mode = "Authenticate";
   } else if (state.isAsking) {
     title = "Scanning";
@@ -422,7 +422,7 @@ async function handleConnect() {
 
   try {
     setConnectBusy(true);
-    const tokenResponse = await requestGoogleToken("consent");
+    const tokenResponse = await requestGoogleToken(GOOGLE_LOGIN_PROMPT);
     state.accessToken = tokenResponse.access_token;
     state.expiresAt = Date.now() + Math.max(Number(tokenResponse.expires_in || 3600) - 60, 60) * 1000;
     persistSession();
@@ -559,7 +559,7 @@ function renderAuth() {
 
 function setConnectBusy(active) {
   elements.connectButton.disabled = active;
-  elements.connectButton.textContent = active ? "Opening Google..." : hasActiveSession() ? "Logout" : "Login with Google";
+  elements.connectButton.textContent = active ? "Opening Google account chooser..." : hasActiveSession() ? "Logout" : "Login with Google";
 }
 
 async function handleAsk(event) {
