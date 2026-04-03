@@ -589,8 +589,40 @@ input[type="text"]:focus {
   white-space: pre-wrap;
 }
 
+.answer-meta {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.answer-meta.empty {
+  display: none;
+}
+
 .answer-shell.empty {
   display: none;
+}
+
+.notebook-link-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(127, 213, 255, 0.18);
+  background: rgba(127, 213, 255, 0.08);
+  color: var(--accent-strong);
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.notebook-link-chip:hover,
+.notebook-link-chip:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(127, 213, 255, 0.34);
+  background: rgba(127, 213, 255, 0.14);
+  outline: none;
 }
 
 .plain-list,

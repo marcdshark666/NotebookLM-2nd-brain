@@ -56,6 +56,27 @@ const STOP_WORDS = new Set([
   "som", "till", "under", "upp", "vad", "var", "vi", "vill", "vore", "vara",
 ]);
 
+const NOTEBOOKS = [
+  {
+    id: "allergologi",
+    title: "Allergologi",
+    url: "https://notebooklm.google.com/notebook/a177068e-f656-472c-8c68-8aefe9e0d434",
+    keywords: ["allergi", "allergologi", "astma", "atopi", "anafylaxi", "urtikaria", "eksem", "pollen", "histamin"],
+  },
+  {
+    id: "dermatologi-venerologi",
+    title: "Dermatologi och venerologi",
+    url: "https://notebooklm.google.com/notebook/514f947b-c84f-4f04-a11a-7b8e8ddf3474",
+    keywords: ["hud", "dermatologi", "venerologi", "acne", "psoriasis", "eksem", "utslag", "melanom", "nevus", "sti", "std"],
+  },
+  {
+    id: "gastroenterologi",
+    title: "Gastroenterologi",
+    url: "https://notebooklm.google.com/notebook/8945321b-2d35-4611-a573-17c667874c64",
+    keywords: ["gastro", "gastroenterologi", "ibd", "crohn", "ulceros", "magsack", "tarm", "kolit", "celiaki", "reflux", "lever"],
+  },
+];
+
 const elements = {
   authPill: document.querySelector("#auth-pill"),
   authCopy: document.querySelector("#auth-copy"),
@@ -80,6 +101,7 @@ const elements = {
   questionInput: document.querySelector("#question-input"),
   answerShell: document.querySelector("#answer-shell"),
   answerText: document.querySelector("#answer-text"),
+  answerMeta: document.querySelector("#answer-meta"),
   citationList: document.querySelector("#citation-list"),
   matchedList: document.querySelector("#matched-list"),
   skippedList: document.querySelector("#skipped-list"),
@@ -294,7 +316,7 @@ function getOrbProfile() {
 
 async function handleAgentOrbClick() {
   if (!hasActiveSession()) {
-    await handleConnect();
+    elements.questionInput.focus();
     return;
   }
 
@@ -311,11 +333,11 @@ function renderAgentSurface() {
 
   if (!state.clientId) {
     title = "Login ready";
-    copy = "Tap login to add your Google client for this session.";
+    copy = "You can ask directly now, or add Google later for Drive search.";
     mode = "Setup";
   } else if (!connected) {
     title = "Login ready";
-    copy = "Login with Google and choose one of your existing accounts.";
+    copy = "Ask directly, or login with Google and choose one of your existing accounts.";
     mode = "Authenticate";
   } else if (state.isAsking) {
     title = "Scanning";
@@ -534,7 +556,7 @@ function renderAuth() {
   const connected = hasActiveSession();
   elements.connectButton.disabled = false;
   elements.logoutButton.disabled = !connected;
-  elements.askButton.disabled = !connected;
+  elements.askButton.disabled = false;
 
   elements.authPill.textContent = connected ? "Ansluten till Google" : "Inte ansluten";
   elements.authPill.className = `status-pill ${connected ? "connected" : "disconnected"}`;
@@ -568,16 +590,14 @@ async function handleAsk(event) {
   const question = String(elements.questionInput.value || "").trim();
   if (!question) return;
 
-  if (!hasActiveSession()) {
-    setAnswerText("Logga in med Google forst.");
-    return;
-  }
-
   try {
     setAskBusy(true);
-    setAnswerText("Laser kallor och bygger ett samlat svar...");
+    setAnswerText("Analyserar fragan och matchar relevanta notebooks...");
+    renderAnswerMeta([]);
     clearLists();
-    const payload = await answerQuestionAcrossSources(question);
+    const payload = hasActiveSession()
+      ? await answerQuestionAcrossSources(question)
+      : answerQuestionAcrossNotebooks(question);
     renderAnswer(payload);
   } catch (error) {
     setAnswerText(error.message || "Det gick inte att bearbeta fragan.");
@@ -650,6 +670,7 @@ async function searchDriveFiles(query, limit) {
 
 async function answerQuestionAcrossSources(question) {
   const terms = extractSearchTerms(question);
+  const notebookMatches = rankRelevantNotebooks(question).slice(0, 3);
   const candidateFiles = await searchDriveFiles(question, 10);
   const contexts = [];
   const skipped = [];
@@ -684,6 +705,7 @@ async function answerQuestionAcrossSources(question) {
   return {
     question,
     answer: buildExtractiveAnswer(question, contexts, skipped),
+    notebookMatches,
     citations: contexts.slice(0, 6).map((context, index) => ({
       id: index + 1,
       file: serializeFile(context.file),
@@ -691,6 +713,38 @@ async function answerQuestionAcrossSources(question) {
     })),
     matchedFiles: contexts.map((context) => serializeFile(context.file)),
     skippedFiles: skipped,
+  };
+}
+
+function answerQuestionAcrossNotebooks(question) {
+  const matches = rankRelevantNotebooks(question);
+  const topMatches = matches.slice(0, 3);
+
+  if (!topMatches.length) {
+    return {
+      answer: "Jag kunde inte avgora en enda tydlig specialitet utifran fragan, sa jag visar dina notebooks som narmaste startpunkter.",
+      notebookMatches: NOTEBOOKS,
+      citations: [],
+      matchedFiles: [],
+      skippedFiles: [],
+    };
+  }
+
+  const titles = topMatches.map((entry) => entry.title);
+  const opening =
+    topMatches.length === 1
+      ? `Den mest relevanta notebooken for fragan verkar vara ${titles[0]}.`
+      : `De mest relevanta notebooks for fragan verkar vara ${titles.join(", ")}.`;
+
+  const support =
+    " Jag kan just nu anvanda dina NotebookLM-lankar som en smart katalog och skicka dig till ratt omrade direkt fran fragan.";
+
+  return {
+    answer: `${opening}${support}`,
+    notebookMatches: topMatches,
+    citations: [],
+    matchedFiles: [],
+    skippedFiles: [],
   };
 }
 
@@ -756,9 +810,29 @@ async function fetchWithToken(url) {
 
 function renderAnswer(payload) {
   setAnswerText(payload.answer || "Inget svar kom tillbaka.");
+  renderAnswerMeta(payload.notebookMatches || []);
   renderCitationList(payload.citations || []);
   renderSimpleFileList(elements.matchedList, payload.matchedFiles || [], "Inga anvandbara filer lastes.");
   renderSkippedList(payload.skippedFiles || []);
+}
+
+function renderAnswerMeta(notebooks) {
+  if (!elements.answerMeta) return;
+
+  if (!notebooks.length) {
+    elements.answerMeta.innerHTML = "";
+    elements.answerMeta.classList.add("empty");
+    return;
+  }
+
+  elements.answerMeta.classList.remove("empty");
+  elements.answerMeta.innerHTML = notebooks
+    .map((notebook) => `
+      <a class="notebook-link-chip" href="${escapeHtml(notebook.url)}" target="_blank" rel="noreferrer">
+        ${escapeHtml(notebook.title)}
+      </a>
+    `)
+    .join("");
 }
 
 function renderCitationList(citations) {
@@ -871,7 +945,7 @@ function renderSources(files, query = "") {
 
 function setAskBusy(active) {
   state.isAsking = active;
-  elements.askButton.disabled = active || !hasActiveSession();
+  elements.askButton.disabled = active;
   elements.askButton.textContent = active ? "Thinking..." : "Ask";
   renderAgentSurface();
 }
@@ -946,6 +1020,7 @@ function clearStoredClientId() {
 }
 
 function clearLists() {
+  renderAnswerMeta([]);
   elements.citationList.innerHTML = "";
   elements.matchedList.innerHTML = "";
   elements.skippedList.innerHTML = "";
@@ -954,6 +1029,31 @@ function clearLists() {
 function setAnswerText(text) {
   elements.answerShell.classList.remove("empty");
   elements.answerText.textContent = text;
+}
+
+function rankRelevantNotebooks(question) {
+  const terms = extractSearchTerms(question);
+  const questionText = String(question || "").toLowerCase();
+
+  const scored = NOTEBOOKS
+    .map((notebook) => {
+      const titleTerms = extractSearchTerms(notebook.title);
+      const keywordMatches = notebook.keywords.reduce((total, keyword) => total + (questionText.includes(keyword) ? 4 : 0), 0);
+      const titleMatches = titleTerms.reduce((total, term) => total + (terms.includes(term) ? 5 : 0), 0);
+      const looseMatches = terms.reduce((total, term) => {
+        const inTitle = notebook.title.toLowerCase().includes(term);
+        const inKeywords = notebook.keywords.some((keyword) => keyword.includes(term) || term.includes(keyword));
+        return total + (inTitle || inKeywords ? 2 : 0);
+      }, 0);
+
+      return {
+        ...notebook,
+        score: keywordMatches + titleMatches + looseMatches,
+      };
+    })
+    .sort((left, right) => right.score - left.score);
+
+  return scored.filter((notebook, index) => notebook.score > 0 || index === 0);
 }
 
 function serializeFile(file) {
