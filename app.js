@@ -311,7 +311,7 @@ function renderAgentSurface() {
 
   if (!state.clientId) {
     title = "Login ready";
-    copy = "Tap login to add your Google client once and start the session.";
+    copy = "Tap login to add your Google client for this session.";
     mode = "Setup";
   } else if (!connected) {
     title = "Login ready";
@@ -355,7 +355,7 @@ function renderLocationInfo() {
 }
 
 function restoreClientId() {
-  const storedClientId = normalizeClientId(localStorage.getItem(STORAGE_KEYS.clientId));
+  const storedClientId = normalizeClientId(readStoredClientId());
   const configuredClientId = normalizeClientId(APP_CONFIG.googleClientId);
 
   if (isValidGoogleClientId(storedClientId)) {
@@ -364,7 +364,7 @@ function restoreClientId() {
   }
 
   if (storedClientId) {
-    localStorage.removeItem(STORAGE_KEYS.clientId);
+    clearStoredClientId();
   }
 
   if (isValidGoogleClientId(configuredClientId)) {
@@ -541,7 +541,7 @@ function renderAuth() {
   elements.connectButton.textContent = connected ? "Logout" : "Login with Google";
 
   if (!state.clientId) {
-    elements.authCopy.textContent = "Google Client ID saknas fortfarande i den har webblasaren.";
+    elements.authCopy.textContent = "Google Client ID saknas i den har sessionen.";
     renderAgentSurface();
     return;
   }
@@ -907,13 +907,41 @@ function applyClientId(clientId, options = {}) {
   elements.clientIdInput.value = normalizedClientId;
 
   if (persist) {
-    localStorage.setItem(STORAGE_KEYS.clientId, normalizedClientId);
+    storeClientId(normalizedClientId);
   }
 }
 
 function clearClientIdState() {
   state.clientId = "";
   elements.clientIdInput.value = "";
+  clearStoredClientId();
+}
+
+function readStoredClientId() {
+  try {
+    return window.sessionStorage.getItem(STORAGE_KEYS.clientId) || localStorage.getItem(STORAGE_KEYS.clientId) || "";
+  } catch {
+    return localStorage.getItem(STORAGE_KEYS.clientId) || "";
+  }
+}
+
+function storeClientId(clientId) {
+  try {
+    window.sessionStorage.setItem(STORAGE_KEYS.clientId, clientId);
+  } catch {
+    // ignore session storage failures and fall back to in-memory state only
+  }
+
+  localStorage.removeItem(STORAGE_KEYS.clientId);
+}
+
+function clearStoredClientId() {
+  try {
+    window.sessionStorage.removeItem(STORAGE_KEYS.clientId);
+  } catch {
+    // ignore session storage failures
+  }
+
   localStorage.removeItem(STORAGE_KEYS.clientId);
 }
 
